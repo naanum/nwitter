@@ -1,38 +1,32 @@
 import Nweet from "components/Nweet";
-import { dbService } from "fbase";
+import NweetFactory from "components/NweetFactory";
+import { authService, dbService } from "fbase";
+import { onAuthStateChanged } from "firebase/auth";
 import React, { useEffect, useState } from "react";
 
 const Home = ({ userObj }) => {
-	const [nweet, setNweet] = useState("");
 	const [nweets, setNweets] = useState([]);
+
 	useEffect(() => {
-		dbService.collection("nweets").onSnapshot((snapshot) => {
-			const nweetArray = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+		const unsubscribe = dbService.collection("nweets").onSnapshot((snapshot) => {
+			const nweetArray = snapshot.docs.map((doc) => ({
+				id: doc.id,
+				...doc.data(),
+			}));
 			setNweets(nweetArray);
 		});
-	}, []);
-	const onSubmit = async (event) => {
-		event.preventDefault();
-		await dbService.collection("nweets").add({
-			text: nweet,
-			createAt: Date.now(),
-			createId: userObj.uid,
+
+		onAuthStateChanged(authService, (user) => {
+			if (user == null) {
+				unsubscribe();
+			}
 		});
-		setNweet("");
-	};
-	const onChange = (event) => {
-		const {
-			target: { value },
-		} = event;
-		setNweet(value);
-	};
+	}, []);
+
 	return (
-		<div>
-			<form onSubmit={onSubmit}>
-				<input value={nweet} onChange={onChange} type="text" placeholder="What's on your mind?" maxLength={120} />
-				<input type="submit" value="Nweet" />
-			</form>
-			<div>
+		<div className="container">
+			<NweetFactory userObj={userObj} />
+			<div style={{ marginTop: 30 }}>
 				{nweets.map((nweet) => (
 					<Nweet key={nweet.id} nweetObj={nweet} isOwner={nweet.createId === userObj.uid} />
 				))}
